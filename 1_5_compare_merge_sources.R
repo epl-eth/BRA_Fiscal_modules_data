@@ -62,24 +62,58 @@ full_joined <- fiscal_dat_all %>%
 full_joined
 
 ## Missing in at least 1
-supplements <- full_joined %>% 
-  select(MUN_CODE, contains("Mod")) %>% 
+outer_all <- full_joined %>% 
   anti_join(inner_joined,
             by = c("MUN_CODE"))
 
-supplements
+outer_all_l <- outer_all %>% 
+  pivot_longer(-MUN_CODE, 
+               names_pattern = "([aA-zZ]+)_(s[1-3])",
+               names_to = c(".value", "Source")) %>% 
+  filter(!(is.na(Modulo_fiscal_ha) & is.na(MUN_NAME)))
 
-## keep unique values
-supplements_unique <- supplements%>% 
-  gather(source, Modulo_fiscal_ha, starts_with("Modulo_fiscal_ha")) %>% 
-  filter(!is.na(Modulo_fiscal_ha)) %>% 
-  distinct(MUN_CODE, Modulo_fiscal_ha) 
+## different Modulo_fiscal_ha values?
+outer_all_l %>% 
+  distinct(MUN_CODE, Modulo_fiscal_ha) %>% 
+  add_count(MUN_CODE) %>% 
+  filter(n>1)
 
-supplements_unique
+## different names?
+outer_all_l %>% 
+  distinct(MUN_CODE, MUN_NAME) %>% 
+  add_count(MUN_CODE) %>% 
+  filter(n>1)
+
+## correct name is Balneário Piçarras, see https://www.ibge.gov.br/cidades-e-estados/sc/balneario-picarras.html
+
+
+## different codes?
+outer_all_l %>% 
+  distinct(MUN_CODE, MUN_NAME) %>% 
+  add_count(MUN_NAME) %>% 
+  filter(n>1)
+
+filter(dat_Muni, str_detect(MUN_NAME, "Pinto Bandeira"))
+
+## correct one is 4314548, see :
+# https://www.ibge.gov.br/cidades-e-estados/rs/pinto-bandeira.html
+## pinto bandeira is appearing twice!! With 4314530 and 4314548
+
+## 
+outer_correct <- outer_all_l %>% 
+  filter(MUN_CODE!=4314530) %>% 
+  filter(MUN_NAME!= "Piçarras") %>% 
+  distinct(MUN_CODE, MUN_NAME, Modulo_fiscal_ha)
+  
+outer_correct
 
 ## check no dups? OK!
-supplements_unique %>% 
+outer_correct %>% 
   add_count(MUN_CODE) %>% 
+  filter(n>1)
+
+outer_correct %>% 
+  add_count(MUN_NAME) %>% 
   filter(n>1)
 
 ################################
@@ -88,7 +122,8 @@ supplements_unique %>%
 
 ## bind inner join and supplements
 final <- inner_joined_crct %>% 
-  rbind(supplements_unique) %>%
+  rbind(outer_correct %>% 
+          select(MUN_CODE, Modulo_fiscal_ha)) %>%
   arrange(MUN_CODE) %>% 
   left_join(dat_Muni %>% 
               select(MUN_CODE, MUN_NAME, UF_ABBREV),
@@ -97,30 +132,18 @@ final <- inner_joined_crct %>%
 
 final
 
-## CHECK: any NA?
+## CHECK: any NAs? OK!
+anyNA(final)
+
+## CHECK: duplicates?
 final %>% 
-  filter(is.na(UF_ABBREV))
-
-fiscal_dat_all %>% 
-  map_dfr(~filter(., MUN_CODE==4314530))
-
-## Was split 
-dat_Muni %>% 
-  filter(str_detect(MUN_NAME, "Bento Gonçalves"))
-
-## correct for one
-final_c <- final %>% 
-  mutate(MUN_NAME = if_else(MUN_CODE==4314530, "Pinto Bandeira", MUN_NAME),
-         UF_ABBREV = if_else(MUN_CODE==4314530, "RS", UF_ABBREV))
-
-
-## CHECK: Nas?
-anyNA(final_c)
-
-## duplicates?
-final_c %>% 
   add_count(MUN_CODE) %>% 
   filter(n>1)
+
+## CHECK: 0 values?
+final %>% 
+  filter(Modulo_fiscal_ha==0)
+  
 
 ##
 # UF_all <- unique(fiscal_dat_Src1$UF_ABBREV)
@@ -157,5 +180,5 @@ final_c %>%
 ################################
 
 
-write_csv(final_c,
+write_csv(final,
           "03_Final_data/municipios_modulos_fiscais_CLEAN.csv")
