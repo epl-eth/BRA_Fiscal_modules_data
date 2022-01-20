@@ -1,0 +1,26 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+## 
+*.csv
+*.pdf
+*.xls
+*.xlsx
+*.rds
+*.RDATA
+*.geojson
+*.dbf
+*.prj
+*.shp
+*.shx
+
+
+## MAC generated files
+*.DS_Store
+._*
+
+# Other files
+*.docx
+*.Rout
