@@ -6,6 +6,7 @@
 
 library(tidyverse)
 library(rjson)
+source("888_fzy_match_functions.R")
 
 ################################
 #'## Import data
@@ -65,33 +66,10 @@ dat_Muni_prep_afterD0 <- dat_Muni_prep %>%
   anti_join(src3_matched_D0, by="MUN_CODE")
 
 ## try fuzzy
-match_fuzzy_here <- function(df_unmatched,  df_matched= NULL,
-                             max_dist=1){
-  ## restrict pool of matches
-  dat_muni_pool <- dat_Muni_prep %>% 
-    anti_join(df_matched, by="MUN_CODE")
-  
-  df_unmatched %>%
-    select(MUN_NAME, UF_ABBREV,Modulo_fiscal_ha) %>% 
-    fuzzyjoin::stringdist_left_join(dat_muni_pool, 
-                                    by = c("MUN_NAME", "UF_ABBREV"),
-                                    max_dist = max_dist,
-                                    distance_col="diff") %>% 
-    filter(UF_ABBREV.x==UF_ABBREV.y) %>% 
-    select(-UF_ABBREV.diff, -one_of("diff")) %>% 
-    add_count(MUN_NAME.x, UF_ABBREV.x, name="n_matches")
-}
 
-matches_clean <- function(df){
-  if(any(df$n_matches>1)) warning("Multiple matches!? Clean first")
-  df %>% 
-    select(MUN_NAME=MUN_NAME.x,
-           UF_ABBREV=UF_ABBREV.x, MUN_CODE, MUN_NAME_from_shp=MUN_NAME.y )
-}
-
-src3_fuzzy_matched_D1 <- match_fuzzy_here(df_unmatched =src3_unmatched_D0,
+src3_fuzzy_matched_D1 <- fzy_match_fuzzy_here(df_unmatched =src3_unmatched_D0,
                                           df_matched = src3_matched_D0)
-src3_matched_D1 <- matches_clean(src3_fuzzy_matched_D1)
+src3_matched_D1 <- fzy_matches_clean(src3_fuzzy_matched_D1)
 src3_unmatched_D1  <- src3_unmatched_D0 %>% 
   anti_join(src3_fuzzy_matched_D1, by=c("MUN_NAME"="MUN_NAME.x"))
 
@@ -99,10 +77,10 @@ src3_unmatched_D1
 
 ## Distance of 2 for unmatched at 1
 src3_matched_D01 <- bind_rows(src3_matched_D0, src3_matched_D1)
-src3_fuzzy_matched_D2 <- match_fuzzy_here(src3_unmatched_D1,
+src3_fuzzy_matched_D2 <- fzy_match_fuzzy_here(src3_unmatched_D1,
                                           df_matched = src3_matched_D01,
                                           max_dist=2)
-src3_matched_D2 <- matches_clean(src3_fuzzy_matched_D2)
+src3_matched_D2 <- fzy_matches_clean(src3_fuzzy_matched_D2)
 src3_unmatched_D2  <- src3_unmatched_D1 %>% 
   anti_join(rbind(src3_fuzzy_matched_D2, src3_fuzzy_matched_D1),
             by=c("MUN_NAME"="MUN_NAME.x"))
@@ -155,7 +133,7 @@ src3_match_manu <- tribble(
   ) %>% 
   mutate(across(everything(), str_to_upper)) %>% 
   left_join(src3_unmatched_D2 %>% 
-              select(MUN_NAME, UF_ABBREV),
+              select(MUN_NAME, UF_ABBREV, Modulo_fiscal_ha),
             by = c("MUN_NAME")) %>% 
   left_join(dat_Muni_prep,
             by =c("MUN_NAME_corr"="MUN_NAME", "UF_ABBREV"))
@@ -200,6 +178,11 @@ src3_matched_final_c
 src3_matched_final_c %>% 
   filter(is.na(MUN_CODE))
 
+## CHECK: missing modulo?
+src3_matched_final_c %>% 
+  filter(is.na(Modulo_fiscal_ha))
+
+
 ## CHECK: all matched?
 src3_dat_mFisc %>% 
   anti_join(src3_matched_final_c, by=c("MUN_NAME" ="MUN_NAME_data_orig"))
@@ -217,4 +200,4 @@ src3_matched_final_c %>%
 ################################
 
 write_csv(src3_matched_final_c,
-          "02_In_Process/IMAFORA_municipios_modulos_fiscais_Source_3_CLEAN.csv")
+          "02_In_Process/EMBRAPA_municipios_modulos_fiscais_Source_3_CLEAN.csv")
