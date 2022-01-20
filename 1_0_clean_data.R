@@ -8,15 +8,13 @@ library(tidyverse)
 library(readxl)
 library(fuzzyjoin)
 
-options(pillar.print_max = 3)
-options(pillar.print_min = 3)
 
 ################################
 #'## Read data
 ################################
 
 dat_Fisc <- readxl::read_xls("01_Raw_data/IMAFORA-municipios_modulos_fiscais_ManualDownload.xls")
-dat_Muni <- read_csv("../Spatial/BR_admin_units_Municipios/03_Final_Data/BR_Municipios_2020_clean_DATA.csv")
+dat_Muni <- read_csv("01_Raw_Data/BR_Municipios_2020_clean_DATA.csv")
 
 ################################
 #'## Prepare data
